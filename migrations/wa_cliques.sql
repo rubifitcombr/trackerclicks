@@ -1,6 +1,13 @@
 -- Migration: PostgreSQL (Supabase / Railway / Neon)
 -- Execute no SQL Editor do Supabase ou psql
 
+CREATE TABLE IF NOT EXISTS usuarios (
+  id         SERIAL PRIMARY KEY,
+  email      VARCHAR(255) NOT NULL UNIQUE,
+  senha_hash TEXT         NOT NULL,
+  criado_em  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS wa_cliques (
   id             SERIAL PRIMARY KEY,
   campanha       VARCHAR(100),

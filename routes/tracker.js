@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const path = require('path');
 const db = require('../config/db');
-const { verifyPassword, makeSessionToken, getCookie } = require('../utils/auth');
+const { hashPassword, verifyPassword, makeSessionToken, getCookie } = require('../utils/auth');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -102,8 +102,6 @@ router.post('/registro', express.json(), async (req, res) => {
   }
 
   try {
-    const { hashPassword } = require('../utils/auth');
-
     // Verifica se o e-mail já existe
     const [exists] = await db.execute('SELECT id FROM usuarios WHERE email = ?', [email]);
     if (exists.length > 0) {
@@ -117,8 +115,8 @@ router.post('/registro', express.json(), async (req, res) => {
 
     return res.json({ ok: true });
   } catch (err) {
-    console.error('[Registro] Erro:', err.code || err.message);
-    return res.status(500).json({ erro: 'Erro interno ao criar conta.' });
+    console.error('[Registro] Erro completo:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
+    return res.status(500).json({ erro: 'Erro interno ao criar conta.', detalhe: err.code || err.message });
   }
 });
 
