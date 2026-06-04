@@ -355,17 +355,29 @@ router.get('/painel/cliques', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, '../views/painel_cliques.html'));
 });
 
-// ─── Diagnóstico temporário de DB (remover após resolver) ────────────────────
+// ─── Diagnóstico de DB ────────────────────────────────────────────────────────
 router.get('/api/debug-db', async (req, res) => {
+  // Mostra o host da DATABASE_URL sem expor senha
+  const dbUrl = process.env.DATABASE_URL || '';
+  let hostInfo = '(DATABASE_URL não definida)';
+  if (dbUrl) {
+    try {
+      const u = new URL(dbUrl);
+      hostInfo = `${u.hostname}:${u.port} user=${u.username} db=${u.pathname}`;
+    } catch (e) {
+      hostInfo = `URL inválida: ${e.message}`;
+    }
+  }
+
   try {
     const [rows] = await db.execute('SELECT current_database() AS db, now() AS hora');
     const [tbls] = await db.execute(
       `SELECT table_name FROM information_schema.tables
        WHERE table_schema = 'public' ORDER BY table_name`
     );
-    res.json({ ok: true, banco: rows[0], tabelas: tbls.map(r => r.table_name) });
+    res.json({ ok: true, host_info: hostInfo, banco: rows[0], tabelas: tbls.map(r => r.table_name) });
   } catch (err) {
-    res.status(500).json({ ok: false, erro: err.message, code: err.code });
+    res.status(500).json({ ok: false, host_info: hostInfo, erro: err.message, code: err.code });
   }
 });
 
