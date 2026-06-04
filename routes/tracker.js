@@ -188,14 +188,14 @@ router.get('/api/metricas/cliques', requireAuth, async (req, res) => {
     const dias30Params = [];
     if (tipo && VALID_TIPOS.includes(tipo))     { where30.push('tipo = ?');   dias30Params.push(tipo); }
     if (origem && VALID_ORIGENS.includes(origem)) { where30.push('origem = ?'); dias30Params.push(origem); }
-    where30.push('criado_em >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)');
+    where30.push("criado_em >= CURRENT_DATE - INTERVAL '30 days'");
     const where30Clause = 'WHERE ' + where30.join(' AND ');
 
     const [porDia] = await db.execute(
-      `SELECT DATE_FORMAT(DATE(criado_em), '%Y-%m-%d') AS data, COUNT(*) AS total
+      `SELECT TO_CHAR(criado_em::date, 'YYYY-MM-DD') AS data, COUNT(*) AS total
        FROM wa_cliques
        ${where30Clause}
-       GROUP BY DATE(criado_em)
+       GROUP BY criado_em::date
        ORDER BY data ASC`,
       dias30Params
     );
@@ -264,7 +264,7 @@ router.post('/api/url-curta', requireAuth, express.json(), async (req, res) => {
         );
         break;
       } catch (e) {
-        if (e.code === 'ER_DUP_ENTRY' && !codigoSugerido) {
+        if (e.code === '23505' && !codigoSugerido) {
           codigo = crypto.randomBytes(4).toString('base64url').slice(0, 6);
           tentativas++;
         } else {
@@ -278,10 +278,10 @@ router.post('/api/url-curta', requireAuth, express.json(), async (req, res) => {
     return res.json({ codigo, url_curta: `${base}/${codigo}` });
   } catch (err) {
     console.error('[URL Curta] Erro ao criar:', err.code || err.message || err);
-    if (err.code === 'ER_DUP_ENTRY') {
+    if (err.code === '23505') {
       return res.status(409).json({ erro: `O código "${codigo}" já está em uso. Escolha outro.` });
     }
-    if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND' || err.code === 'ER_ACCESS_DENIED_ERROR') {
+    if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND' || err.code === '28P01') {
       return res.status(500).json({ erro: 'Banco de dados não conectado. Verifique as configurações no .env' });
     }
     return res.status(500).json({ erro: 'Erro interno ao criar URL curta.', detalhe: err.code || err.message });
