@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const path = require('path');
+const crypto = require('crypto');
 const db = require('../config/db');
 const { hashPassword, verifyPassword, makeSessionToken, getCookie } = require('../utils/auth');
 
@@ -115,7 +116,13 @@ router.post('/registro', express.json(), async (req, res) => {
 
     return res.json({ ok: true });
   } catch (err) {
-    console.error('[Registro] Erro completo:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
+    console.error('[Registro] Erro:', err.code, err.message);
+    if (err.code === 'ENOTFOUND' || err.code === 'ECONNREFUSED') {
+      return res.status(500).json({ erro: 'Banco de dados não conectado. Verifique DATABASE_URL na Vercel.', detalhe: err.code });
+    }
+    if (err.code === '42P01') {
+      return res.status(500).json({ erro: 'Tabela "usuarios" não existe. Execute o SQL no Supabase.', detalhe: err.code });
+    }
     return res.status(500).json({ erro: 'Erro interno ao criar conta.', detalhe: err.code || err.message });
   }
 });
