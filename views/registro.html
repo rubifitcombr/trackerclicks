@@ -152,7 +152,8 @@ form.addEventListener('submit', async e => {
       form.style.display = 'none';
       setTimeout(() => window.location.href = '/login', 1800);
     } else {
-      showErro(data.erro || 'Erro ao criar conta.');
+      const detalhe = data.detalhe ? ` (${data.detalhe})` : '';
+      showErro((data.erro || 'Erro ao criar conta.') + detalhe);
       btn.disabled = false;
       btn.textContent = 'Criar conta';
     }

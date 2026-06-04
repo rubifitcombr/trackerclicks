@@ -348,6 +348,20 @@ router.get('/painel/cliques', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, '../views/painel_cliques.html'));
 });
 
+// ─── Diagnóstico temporário de DB (remover após resolver) ────────────────────
+router.get('/api/debug-db', async (req, res) => {
+  try {
+    const [rows] = await db.execute('SELECT current_database() AS db, now() AS hora');
+    const [tbls] = await db.execute(
+      `SELECT table_name FROM information_schema.tables
+       WHERE table_schema = 'public' ORDER BY table_name`
+    );
+    res.json({ ok: true, banco: rows[0], tabelas: tbls.map(r => r.table_name) });
+  } catch (err) {
+    res.status(500).json({ ok: false, erro: err.message, code: err.code });
+  }
+});
+
 // ─── Config pública (SHORT_BASE_URL para o painel) ────────────────────────────
 
 router.get('/api/config', (req, res) => {
