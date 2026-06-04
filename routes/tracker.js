@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const path = require('path');
-const crypto = require('crypto');
 const db = require('../config/db');
+const { verifyPassword, makeSessionToken, getCookie } = require('../utils/auth');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -35,36 +35,17 @@ function sanitizeEnum(value, valid, fallback) {
   return valid.includes(value) ? value : fallback;
 }
 
-// ─── Auth por cookie de sessão ────────────────────────────────────────────────
-
-function makeSessionToken(user, pass) {
-  const secret = process.env.SESSION_SECRET || 'vyria-tracker-secret';
-  return crypto.createHmac('sha256', secret).update(user + ':' + pass).digest('hex');
-}
-
-function getCookie(req, name) {
-  const raw = req.headers.cookie || '';
-  const found = raw.split(';').map(c => c.trim()).find(c => c.startsWith(name + '='));
-  return found ? decodeURIComponent(found.slice(name.length + 1)) : null;
-}
+// ─── Auth por cookie de sessão (usuário no banco) ────────────────────────────
 
 function requireAuth(req, res, next) {
-  const user = process.env.PAINEL_USER || 'vyria';
-  const pass = process.env.PAINEL_PASS || 'tracker@2025';
-  const validToken = makeSessionToken(user, pass);
-
-  // Verifica cookie de sessão
-  if (getCookie(req, 'vyria_session') === validToken) return next();
-
-  // Verifica Basic Auth (compatibilidade com chamadas fetch do painel)
-  const authHeader = req.headers['authorization'] || '';
-  const b64 = authHeader.replace(/^Basic\s+/i, '');
-  try {
-    const [u, p] = Buffer.from(b64, 'base64').toString('utf8').split(':');
-    if (u === user && p === pass) return next();
-  } catch (_) {}
-
-  // Redireciona para a página de login
+  const cookie = getCookie(req, 'vyria_session');
+  if (cookie) {
+    const parts = cookie.split('|');
+    if (parts.length === 3) {
+      const [userId, email, token] = parts;
+      if (token === makeSessionToken(userId, email)) return next();
+    }
+  }
   const next_ = encodeURIComponent(req.originalUrl);
   return res.redirect(`/login?next=${next_}`);
 }
@@ -75,19 +56,27 @@ router.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, '../views/login.html'));
 });
 
-router.post('/login', express.urlencoded({ extended: false }), (req, res) => {
-  const user = process.env.PAINEL_USER || 'vyria';
-  const pass = process.env.PAINEL_PASS || 'tracker@2025';
+router.post('/login', express.urlencoded({ extended: false }), async (req, res) => {
   const { username, password, next: nextUrl } = req.body;
+  const safeNext = encodeURIComponent(nextUrl || '/painel/cliques');
 
-  if (username === user && password === pass) {
-    const token = makeSessionToken(user, pass);
-    const cookieOpts = 'Path=/; HttpOnly; SameSite=Lax; Max-Age=86400';
-    res.setHeader('Set-Cookie', `vyria_session=${token}; ${cookieOpts}`);
-    return res.redirect(nextUrl || '/painel/cliques');
+  try {
+    const [rows] = await db.execute(
+      'SELECT id, email, senha_hash FROM usuarios WHERE email = ? LIMIT 1',
+      [username]
+    );
+    const usuario = rows[0];
+
+    if (usuario && verifyPassword(password, usuario.senha_hash)) {
+      const token = makeSessionToken(String(usuario.id), usuario.email);
+      const cookieVal = encodeURIComponent(`${usuario.id}|${usuario.email}|${token}`);
+      res.setHeader('Set-Cookie', `vyria_session=${cookieVal}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`);
+      return res.redirect(nextUrl || '/painel/cliques');
+    }
+  } catch (err) {
+    console.error('[Login] Erro ao verificar usuário:', err.code || err.message);
   }
 
-  const safeNext = encodeURIComponent(nextUrl || '/painel/cliques');
   return res.redirect(`/login?erro=1&next=${safeNext}`);
 });
 

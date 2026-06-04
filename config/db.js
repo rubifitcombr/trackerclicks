@@ -1,4 +1,5 @@
 const { Pool } = require('pg');
+const { hashPassword } = require('../utils/auth');
 
 // Suporta DATABASE_URL (Supabase/Railway) ou variáveis individuais (Hostinger/local)
 const pool = new Pool(
@@ -23,6 +24,13 @@ pool.execute = async (sql, params = []) => {
 };
 
 const CREATE_TABLES = `
+  CREATE TABLE IF NOT EXISTS usuarios (
+    id         SERIAL PRIMARY KEY,
+    email      VARCHAR(255) NOT NULL UNIQUE,
+    senha_hash TEXT         NOT NULL,
+    criado_em  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+
   CREATE TABLE IF NOT EXISTS wa_cliques (
     id             SERIAL PRIMARY KEY,
     campanha       VARCHAR(100),
@@ -63,6 +71,18 @@ pool.connect()
     try {
       await client.query(CREATE_TABLES);
       console.log('[DB] Tabelas verificadas/criadas com sucesso.');
+
+      // Seed do usuário admin se a tabela estiver vazia
+      const { rowCount } = await client.query('SELECT 1 FROM usuarios LIMIT 1');
+      if (rowCount === 0) {
+        const email    = process.env.ADMIN_EMAIL    || 'admin@vyria.com';
+        const password = process.env.ADMIN_PASSWORD || 'admin123';
+        await client.query(
+          'INSERT INTO usuarios (email, senha_hash) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [email, hashPassword(password)]
+        );
+        console.log(`[DB] Usuário admin criado: ${email}`);
+      }
     } finally {
       client.release();
     }
