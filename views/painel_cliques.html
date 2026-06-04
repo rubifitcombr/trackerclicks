@@ -425,9 +425,21 @@ async function carregarDados() {
   try {
     const qs2 = buildQueryString();
     const resp = await fetch('/api/metricas/cliques' + qs2);
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    dadosAtuais = await resp.json();
 
+    if (resp.status === 401) {
+      window.location.href = '/login';
+      return;
+    }
+
+    const data = await resp.json();
+
+    if (!resp.ok) {
+      mostrarErroDB(data.detalhe || data.erro || 'Erro desconhecido');
+      return;
+    }
+
+    esconderErroDB();
+    dadosAtuais = data;
     renderCards(dadosAtuais);
     renderGrafico(dadosAtuais.por_dia);
     renderTabela(dadosAtuais.por_campanha);
@@ -437,8 +449,42 @@ async function carregarDados() {
       new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   } catch (err) {
     console.error('[Painel] Erro ao carregar:', err);
-    qs('last-updated').textContent = 'Erro ao atualizar';
+    mostrarErroDB('Sem conexão com o servidor.');
   }
+}
+
+function mostrarErroDB(detalhe) {
+  qs('last-updated').textContent = 'Banco não conectado';
+  let banner = document.getElementById('db-error-banner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'db-error-banner';
+    banner.style.cssText = `
+      background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);
+      border-radius:12px;padding:20px 24px;margin-bottom:28px;
+    `;
+    document.querySelector('main').prepend(banner);
+  }
+  banner.innerHTML = `
+    <div style="display:flex;align-items:flex-start;gap:14px">
+      <span style="font-size:1.4rem;margin-top:2px">⚠️</span>
+      <div>
+        <div style="font-weight:700;color:#f87171;margin-bottom:6px">Banco de dados não conectado</div>
+        <div style="font-size:.83rem;color:#7c92a8;line-height:1.6">
+          Configure as variáveis de ambiente no painel da Vercel:<br>
+          <code style="background:#0f1923;padding:2px 7px;border-radius:4px;color:#94a3b8">
+            DB_HOST &nbsp;·&nbsp; DB_USER &nbsp;·&nbsp; DB_PASSWORD &nbsp;·&nbsp; DB_NAME
+          </code><br><br>
+          ${detalhe ? `<span style="color:#ef4444;font-size:.78rem">Erro: ${detalhe}</span>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function esconderErroDB() {
+  const b = document.getElementById('db-error-banner');
+  if (b) b.remove();
 }
 
 // ─── Cards ─────────────────────────────────────────────────────────────────────
