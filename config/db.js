@@ -72,16 +72,15 @@ pool.connect()
       await client.query(CREATE_TABLES);
       console.log('[DB] Tabelas verificadas/criadas com sucesso.');
 
-      // Seed do usuário admin se a tabela estiver vazia
-      const { rowCount } = await client.query('SELECT 1 FROM usuarios LIMIT 1');
-      if (rowCount === 0) {
-        const email    = process.env.ADMIN_EMAIL    || 'admin@vyria.com';
-        const password = process.env.ADMIN_PASSWORD || 'admin123';
+      // Upsert do usuário admin a cada startup (garante senha sempre no formato correto)
+      if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
         await client.query(
-          'INSERT INTO usuarios (email, senha_hash) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-          [email, hashPassword(password)]
+          `INSERT INTO usuarios (email, senha_hash)
+           VALUES ($1, $2)
+           ON CONFLICT (email) DO UPDATE SET senha_hash = EXCLUDED.senha_hash`,
+          [process.env.ADMIN_EMAIL, hashPassword(process.env.ADMIN_PASSWORD)]
         );
-        console.log(`[DB] Usuário admin criado: ${email}`);
+        console.log(`[DB] Usuário admin sincronizado: ${process.env.ADMIN_EMAIL}`);
       }
     } finally {
       client.release();
