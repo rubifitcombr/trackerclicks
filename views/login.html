@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vyria — Login</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      background: #0f1923;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+
+    .card {
+      background: #18232f;
+      border: 1px solid #263447;
+      border-radius: 16px;
+      padding: 44px 40px 36px;
+      width: 100%;
+      max-width: 380px;
+      box-shadow: 0 24px 60px rgba(0,0,0,.5);
+    }
+
+    .logo {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .logo-icon {
+      width: 52px; height: 52px;
+      background: linear-gradient(135deg, #25D366, #1aab52);
+      border-radius: 14px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 26px;
+      margin-bottom: 12px;
+    }
+    .logo h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #e2e8f0;
+      letter-spacing: .3px;
+    }
+    .logo p {
+      font-size: .78rem;
+      color: #7c92a8;
+      margin-top: 3px;
+    }
+
+    .field {
+      margin-bottom: 16px;
+    }
+    .field label {
+      display: block;
+      font-size: .72rem;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      color: #7c92a8;
+      margin-bottom: 6px;
+    }
+    .field input {
+      width: 100%;
+      background: #0f1923;
+      border: 1px solid #263447;
+      border-radius: 9px;
+      padding: 11px 14px;
+      color: #e2e8f0;
+      font-size: .92rem;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .field input:focus {
+      border-color: #25D366;
+    }
+    .field input::placeholder { color: #4a6070; }
+
+    .btn-login {
+      width: 100%;
+      margin-top: 8px;
+      padding: 12px;
+      background: #25D366;
+      color: #fff;
+      border: none;
+      border-radius: 9px;
+      font-size: .95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .15s, transform .1s;
+      letter-spacing: .3px;
+    }
+    .btn-login:hover  { background: #1aab52; }
+    .btn-login:active { transform: scale(.98); }
+
+    .error-msg {
+      background: rgba(239,68,68,.12);
+      border: 1px solid rgba(239,68,68,.3);
+      color: #f87171;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: .82rem;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .error-msg.visible { display: block; }
+
+    .footer {
+      text-align: center;
+      margin-top: 22px;
+      font-size: .72rem;
+      color: #3a5068;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo">
+    <div class="logo-icon">📊</div>
+    <h1>Vyria Delivery</h1>
+    <p>Rastreamento de Cliques</p>
+  </div>
+
+  <div class="error-msg" id="error-msg">
+    Usuário ou senha incorretos.
+  </div>
+
+  <form method="POST" action="/login" id="form-login">
+    <input type="hidden" name="next" value="__NEXT__" />
+
+    <div class="field">
+      <label>Usuário</label>
+      <input
+        type="text"
+        name="username"
+        id="username"
+        placeholder="vyria"
+        autocomplete="username"
+        autofocus
+        required
+      />
+    </div>
+
+    <div class="field">
+      <label>Senha</label>
+      <input
+        type="password"
+        name="password"
+        id="password"
+        placeholder="••••••••••"
+        autocomplete="current-password"
+        required
+      />
+    </div>
+
+    <button type="submit" class="btn-login">Entrar</button>
+  </form>
+
+  <div class="footer">Vyria Delivery &copy; 2025</div>
+</div>
+
+<script>
+  // Exibe mensagem de erro se vier ?erro=1 na URL
+  if (new URLSearchParams(location.search).get('erro') === '1') {
+    document.getElementById('error-msg').classList.add('visible');
+  }
+  // Repassa o ?next= para o campo hidden
+  const next = new URLSearchParams(location.search).get('next') || '/painel/cliques';
+  document.querySelector('input[name="next"]').value = next;
+</script>
+</body>
+</html>

@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vyria — Rastreamento de Cliques</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --green:   #25D366;
+      --green-d: #1aab52;
+      --dark:    #0f1923;
+      --card:    #18232f;
+      --border:  #263447;
+      --text:    #e2e8f0;
+      --muted:   #7c92a8;
+      --accent:  #3b82f6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--dark); color: var(--text); font-family: 'Segoe UI', sans-serif; min-height: 100vh; }
+
+    /* ── Header ── */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 32px; background: var(--card); border-bottom: 1px solid var(--border);
+    }
+    header h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: .5px; }
+    header h1 span { color: var(--green); }
+    .refresh-badge {
+      font-size: .75rem; color: var(--muted); display: flex; align-items: center; gap: 6px;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    /* ── Layout ── */
+    main { max-width: 1300px; margin: 0 auto; padding: 28px 24px; }
+    section { margin-bottom: 36px; }
+    h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin-bottom: 14px; }
+
+    /* ── Cards ── */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+    .card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 20px 22px; position: relative; overflow: hidden;
+    }
+    .card .label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; }
+    .card .value { font-size: 2rem; font-weight: 700; margin-top: 6px; line-height: 1; }
+    .card .sub { font-size: .75rem; color: var(--muted); margin-top: 4px; }
+    .card.green .value { color: var(--green); }
+    .card.blue  .value { color: var(--accent); }
+    .card.yellow .value { color: #f59e0b; }
+    .card.red   .value { color: #ef4444; }
+
+    /* ── Filters ── */
+    .filters {
+      display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 18px 20px;
+    }
+    .filter-group { display: flex; flex-direction: column; gap: 4px; }
+    .filter-group label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+    .filters select,
+    .filters input[type="date"],
+    .filters input[type="text"] {
+      background: var(--dark); border: 1px solid var(--border); color: var(--text);
+      border-radius: 8px; padding: 7px 12px; font-size: .85rem; outline: none;
+      min-width: 140px;
+    }
+    .filters select:focus,
+    .filters input:focus { border-color: var(--accent); }
+    .btn {
+      padding: 8px 18px; border-radius: 8px; border: none; cursor: pointer;
+      font-size: .85rem; font-weight: 600; transition: opacity .15s;
+    }
+    .btn:hover { opacity: .85; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-green   { background: var(--green); color: #fff; }
+    .btn-outline {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text); padding: 8px 14px;
+    }
+    .btn-copy { background: var(--card); border: 1px solid var(--green); color: var(--green); }
+
+    /* ── Chart ── */
+    .chart-wrap {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 20px; height: 260px;
+    }
+
+    /* ── Table ── */
+    .table-wrap {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      overflow: hidden;
+    }
+    .table-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 20px; border-bottom: 1px solid var(--border);
+    }
+    .table-header span { font-size: .8rem; color: var(--muted); }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      background: #1e2d3d; text-align: left; padding: 10px 16px;
+      font-size: .72rem; text-transform: uppercase; letter-spacing: .7px;
+      color: var(--muted); cursor: pointer; user-select: none; white-space: nowrap;
+    }
+    thead th:hover { color: var(--text); }
+    thead th .sort-icon { margin-left: 4px; opacity: .4; }
+    thead th.sorted .sort-icon { opacity: 1; color: var(--accent); }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+    tbody tr:hover { background: rgba(255,255,255,.03); }
+    tbody td { padding: 10px 16px; font-size: .85rem; }
+    .badge {
+      display: inline-block; padding: 2px 10px; border-radius: 20px;
+      font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .4px;
+    }
+    .badge-whatsapp { background: rgba(37,211,102,.15); color: var(--green); }
+    .badge-site     { background: rgba(59,130,246,.15); color: var(--accent); }
+    .badge-menu     { background: rgba(245,158,11,.15); color: #f59e0b; }
+    .badge-trial    { background: rgba(168,85,247,.15); color: #a855f7; }
+    .badge-preco    { background: rgba(236,72,153,.15); color: #ec4899; }
+    .badge-suporte  { background: rgba(20,184,166,.15); color: #14b8a6; }
+
+    /* ── Gerador de links ── */
+    .generator {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 24px;
+    }
+    .gen-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 16px; }
+    .gen-field { display: flex; flex-direction: column; gap: 5px; }
+    .gen-field label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+    .gen-field input,
+    .gen-field select,
+    .gen-field textarea {
+      background: var(--dark); border: 1px solid var(--border); color: var(--text);
+      border-radius: 8px; padding: 8px 12px; font-size: .85rem; outline: none; resize: vertical;
+    }
+    .gen-field input:focus,
+    .gen-field select:focus,
+    .gen-field textarea:focus { border-color: var(--green); }
+    .gen-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+    .gen-result {
+      background: var(--dark); border: 1px solid var(--border); border-radius: 8px;
+      padding: 12px 14px; font-size: .82rem; color: #94d5a4; word-break: break-all;
+      min-height: 44px; display: none;
+    }
+    .gen-result.visible { display: block; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: var(--green); color: #fff; padding: 10px 20px;
+      border-radius: 8px; font-size: .85rem; font-weight: 600;
+      opacity: 0; transform: translateY(10px); transition: all .3s;
+      pointer-events: none; z-index: 999;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+
+    /* ── Loading ── */
+    .loading { text-align: center; color: var(--muted); padding: 40px; font-size: .9rem; }
+    .empty { text-align: center; color: var(--muted); padding: 30px; font-size: .85rem; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Vyria Delivery — <span>Rastreamento de Cliques</span></h1>
+  <div style="display:flex;align-items:center;gap:16px">
+    <div class="refresh-badge">
+      <div class="dot"></div>
+      <span id="last-updated">Carregando...</span>
+    </div>
+    <a href="/logout" style="font-size:.75rem;color:#7c92a8;text-decoration:none;border:1px solid #263447;padding:5px 12px;border-radius:6px;transition:color .15s" onmouseover="this.style.color='#e2e8f0'" onmouseout="this.style.color='#7c92a8'">Sair</a>
+  </div>
+</header>
+
+<main>
+
+  <!-- CARDS ─────────────────────────────────────────── -->
+  <section>
+    <h2>Visão Geral</h2>
+    <div class="cards" id="cards">
+      <div class="card green">
+        <div class="label">Total de Cliques</div>
+        <div class="value" id="card-total">—</div>
+        <div class="sub">todos os tempos</div>
+      </div>
+      <div class="card blue">
+        <div class="label">Campanhas Ativas</div>
+        <div class="value" id="card-campanhas">—</div>
+        <div class="sub">campanhas distintas</div>
+      </div>
+      <div class="card yellow">
+        <div class="label">Maior Volume</div>
+        <div class="value" id="card-top">—</div>
+        <div class="sub" id="card-top-label">campanha</div>
+      </div>
+      <div class="card red">
+        <div class="label">Último Clique</div>
+        <div class="value" id="card-ultimo" style="font-size:1.1rem;margin-top:10px;">—</div>
+        <div class="sub" id="card-ultimo-sub"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FILTROS ──────────────────────────────────────── -->
+  <section>
+    <h2>Filtros</h2>
+    <div class="filters">
+      <div class="filter-group">
+        <label>Tipo</label>
+        <select id="f-tipo">
+          <option value="">Todos</option>
+          <option value="whatsapp">WhatsApp</option>
+          <option value="site">Site</option>
+          <option value="menu">Menu</option>
+          <option value="trial">Trial</option>
+          <option value="preco">Preço</option>
+          <option value="suporte">Suporte</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Origem</label>
+        <select id="f-origem">
+          <option value="">Todas</option>
+          <option value="meta_ads">Meta Ads</option>
+          <option value="organico">Orgânico</option>
+          <option value="email">E-mail</option>
+          <option value="reativacao">Reativação</option>
+          <option value="direto">Direto</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>De</label>
+        <input type="date" id="f-de" />
+      </div>
+      <div class="filter-group">
+        <label>Até</label>
+        <input type="date" id="f-ate" />
+      </div>
+      <div class="filter-group" style="justify-content:flex-end">
+        <label>&nbsp;</label>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" onclick="carregarDados()">Filtrar</button>
+          <button class="btn btn-outline" onclick="exportarCSV()">Exportar CSV</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GRÁFICO ──────────────────────────────────────── -->
+  <section>
+    <h2>Cliques — Últimos 30 dias</h2>
+    <div class="chart-wrap">
+      <canvas id="chart-dias"></canvas>
+    </div>
+  </section>
+
+  <!-- TABELA ───────────────────────────────────────── -->
+  <section>
+    <h2>Por Campanha</h2>
+    <div class="table-wrap">
+      <div class="table-header">
+        <span id="table-count">—</span>
+        <span style="font-size:.75rem;color:var(--muted)">Clique no cabeçalho para ordenar</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortTable('campanha')" id="th-campanha">Campanha <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('tipo')" id="th-tipo">Tipo <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('total')" id="th-total" class="sorted">Cliques <span class="sort-icon">↓</span></th>
+            <th onclick="sortTable('ultimo_clique')" id="th-ultimo">Último Clique <span class="sort-icon">↕</span></th>
+          </tr>
+        </thead>
+        <tbody id="tabela-campanhas">
+          <tr><td colspan="4" class="loading">Carregando dados...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- TIPO e ORIGEM lado a lado ────────────────────── -->
+  <section>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div>
+        <h2>Por Tipo</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Tipo</th><th>Cliques</th></tr></thead>
+            <tbody id="tabela-tipo"></tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <h2>Por Origem</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Origem</th><th>Cliques</th></tr></thead>
+            <tbody id="tabela-origem"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GERADOR DE LINKS ─────────────────────────────── -->
+  <section>
+    <h2>Gerar Link Rastreado</h2>
+    <div class="generator">
+      <div class="gen-grid">
+        <div class="gen-field" style="grid-column:span 2">
+          <label>Número WhatsApp (com DDI+DDD, sem espaços)</label>
+          <input type="text" id="gen-numero" value="5562999999999" placeholder="5562999999999" />
+        </div>
+        <div class="gen-field">
+          <label>Nome da Campanha</label>
+          <input type="text" id="gen-campanha" placeholder="ex: anuncio-meta-junho" />
+        </div>
+        <div class="gen-field">
+          <label>Tipo</label>
+          <select id="gen-tipo">
+            <option value="whatsapp">WhatsApp</option>
+            <option value="menu">Menu</option>
+            <option value="trial">Trial</option>
+            <option value="preco">Preço</option>
+            <option value="suporte">Suporte</option>
+          </select>
+        </div>
+        <div class="gen-field">
+          <label>Origem</label>
+          <select id="gen-origem">
+            <option value="meta_ads">Meta Ads</option>
+            <option value="organico">Orgânico</option>
+            <option value="email">E-mail</option>
+            <option value="reativacao">Reativação</option>
+            <option value="direto">Direto</option>
+          </select>
+        </div>
+        <div class="gen-field" style="grid-column:span 2">
+          <label>Mensagem pré-preenchida (opcional)</label>
+          <textarea id="gen-mensagem" rows="2" placeholder="Olá! Quero saber mais sobre a Vyria Delivery..."></textarea>
+        </div>
+      </div>
+      <div class="gen-actions">
+        <button class="btn btn-green" onclick="gerarLink()">Gerar Link</button>
+        <button class="btn btn-copy" onclick="copiarLink()" id="btn-copiar" style="display:none">Copiar Link</button>
+        <button class="btn btn-outline" onclick="copiarHTML()" id="btn-copiar-html" style="display:none">Copiar Botão HTML</button>
+      </div>
+      <div class="gen-result" id="gen-result"></div>
+
+      <!-- ── Encurtador ─────────────────────────────── -->
+      <div id="secao-encurtar" style="display:none; margin-top:20px; border-top:1px solid var(--border); padding-top:20px;">
+        <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:12px;">
+          Encurtar Link
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+          <div class="gen-field">
+            <label>Domínio personalizado</label>
+            <input type="text" id="short-domain" placeholder="https://consultoresvyria" />
+          </div>
+          <div class="gen-field">
+            <label>Código personalizado <span style="color:var(--muted);font-weight:400">(opcional)</span></label>
+            <input type="text" id="short-codigo" placeholder="ex: oferta-junho  (deixe vazio para aleatório)" />
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+          <button class="btn btn-green" onclick="encurtarLink()">⚡ Encurtar</button>
+          <button class="btn btn-copy" onclick="copiarCurto()" id="btn-copiar-curto" style="display:none">Copiar Link Curto</button>
+        </div>
+        <div class="gen-result" id="gen-result-curto" style="margin-top:12px;color:#a78bfa;"></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div id="toast">Copiado!</div>
+
+<script>
+// ─── Estado ────────────────────────────────────────────────────────────────────
+let dadosAtuais = null;
+let sortColuna = 'total';
+let sortDir = 'desc';
+let chartInstance = null;
+let linkGerado = '';
+let linkCurtoGerado = '';
+
+// ─── Utilitários ───────────────────────────────────────────────────────────────
+function qs(id) { return document.getElementById(id); }
+
+function fmt(n) { return Number(n).toLocaleString('pt-BR'); }
+
+function fmtDate(str) {
+  if (!str) return '—';
+  // MySQL retorna DATETIME como "2025-06-01 14:30:00" (espaço, não 'T').
+  // Substituímos o espaço por 'T' para garantir parsing correto em todos os browsers.
+  const iso = (typeof str === 'string') ? str.replace(' ', 'T') : str;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return String(str);
+  return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function toast(msg = 'Copiado!') {
+  const el = qs('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+function buildQueryString() {
+  const p = new URLSearchParams();
+  const tipo = qs('f-tipo').value;
+  const origem = qs('f-origem').value;
+  const de = qs('f-de').value;
+  const ate = qs('f-ate').value;
+  if (tipo)   p.set('tipo', tipo);
+  if (origem) p.set('origem', origem);
+  if (de)     p.set('de', de);
+  if (ate)    p.set('ate', ate);
+  return p.toString() ? '?' + p.toString() : '';
+}
+
+// ─── Carregamento de dados ─────────────────────────────────────────────────────
+async function carregarDados() {
+  try {
+    const qs2 = buildQueryString();
+    const resp = await fetch('/api/metricas/cliques' + qs2);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    dadosAtuais = await resp.json();
+
+    renderCards(dadosAtuais);
+    renderGrafico(dadosAtuais.por_dia);
+    renderTabela(dadosAtuais.por_campanha);
+    renderTipoOrigem(dadosAtuais.por_tipo, dadosAtuais.por_origem);
+
+    qs('last-updated').textContent = 'Atualizado às ' +
+      new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  } catch (err) {
+    console.error('[Painel] Erro ao carregar:', err);
+    qs('last-updated').textContent = 'Erro ao atualizar';
+  }
+}
+
+// ─── Cards ─────────────────────────────────────────────────────────────────────
+function renderCards(d) {
+  qs('card-total').textContent = fmt(d.total);
+
+  const campanhasUnicas = new Set((d.por_campanha || []).map(r => r.campanha)).size;
+  qs('card-campanhas').textContent = fmt(campanhasUnicas);
+
+  const top = (d.por_campanha || [])[0];
+  if (top) {
+    qs('card-top').textContent = fmt(top.total);
+    qs('card-top-label').textContent = top.campanha || '—';
+  }
+
+  const allRows = d.por_campanha || [];
+  if (allRows.length) {
+    const ultRows = [...allRows].sort((a, b) =>
+      new Date(b.ultimo_clique) - new Date(a.ultimo_clique)
+    );
+    const u = ultRows[0];
+    const partes = fmtDate(u.ultimo_clique).split(' ');
+    qs('card-ultimo').textContent = partes[1] || partes[0] || '—';
+    qs('card-ultimo-sub').textContent = partes[0] + ' — ' + (u.campanha || '');
+  }
+}
+
+// ─── Gráfico ───────────────────────────────────────────────────────────────────
+function renderGrafico(porDia) {
+  const labels = (porDia || []).map(r => {
+    // r.data pode ser string '2025-06-01' ou objeto Date — normaliza para string ISO
+    const str = (r.data instanceof Date)
+      ? r.data.toISOString().slice(0, 10)
+      : String(r.data).slice(0, 10);
+    const [, m, d] = str.split('-');
+    return `${d}/${m}`;
+  });
+  const data = (porDia || []).map(r => Number(r.total));
+
+  if (chartInstance) chartInstance.destroy();
+
+  chartInstance = new Chart(qs('chart-dias'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Cliques',
+        data,
+        borderColor: '#25D366',
+        backgroundColor: 'rgba(37,211,102,.08)',
+        borderWidth: 2,
+        pointBackgroundColor: '#25D366',
+        pointRadius: 4,
+        fill: true,
+        tension: .35,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: {
+          ticks: { color: '#7c92a8', font: { size: 11 } },
+          grid: { color: 'rgba(255,255,255,.04)' },
+        },
+        y: {
+          ticks: { color: '#7c92a8', font: { size: 11 }, stepSize: 1 },
+          grid: { color: 'rgba(255,255,255,.06)' },
+          beginAtZero: true,
+        }
+      }
+    }
+  });
+}
+
+// ─── Tabela de campanhas ────────────────────────────────────────────────────────
+function sortTable(col) {
+  if (sortColuna === col) {
+    sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortColuna = col;
+    sortDir = col === 'total' ? 'desc' : 'asc';
+  }
+  ['campanha', 'tipo', 'total', 'ultimo'].forEach(c => {
+    const el = qs('th-' + c);
+    if (el) {
+      el.classList.remove('sorted');
+      el.querySelector('.sort-icon').textContent = '↕';
+    }
+  });
+  const th = qs('th-' + (col === 'ultimo_clique' ? 'ultimo' : col));
+  if (th) {
+    th.classList.add('sorted');
+    th.querySelector('.sort-icon').textContent = sortDir === 'asc' ? '↑' : '↓';
+  }
+  if (dadosAtuais) renderTabela(dadosAtuais.por_campanha);
+}
+
+function renderTabela(rows) {
+  const sorted = [...(rows || [])].sort((a, b) => {
+    let va = a[sortColuna], vb = b[sortColuna];
+    if (sortColuna === 'total') { va = +va; vb = +vb; }
+    if (sortColuna === 'ultimo_clique') {
+      va = new Date((va || '').replace(' ', 'T'));
+      vb = new Date((vb || '').replace(' ', 'T'));
+    }
+    if (va < vb) return sortDir === 'asc' ? -1 : 1;
+    if (va > vb) return sortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  qs('table-count').textContent = sorted.length + ' campanhas';
+
+  if (!sorted.length) {
+    qs('tabela-campanhas').innerHTML = '<tr><td colspan="4" class="empty">Nenhum dado encontrado.</td></tr>';
+    return;
+  }
+
+  qs('tabela-campanhas').innerHTML = sorted.map(r => `
+    <tr>
+      <td>${r.campanha || '—'}</td>
+      <td><span class="badge badge-${r.tipo}">${r.tipo}</span></td>
+      <td><strong>${fmt(r.total)}</strong></td>
+      <td>${fmtDate(r.ultimo_clique)}</td>
+    </tr>
+  `).join('');
+}
+
+function renderTipoOrigem(porTipo, porOrigem) {
+  const max = arr => Math.max(...arr.map(r => +r.total), 1);
+
+  const tipoMax = max(porTipo || []);
+  qs('tabela-tipo').innerHTML = (porTipo || []).map(r => {
+    const pct = Math.round((+r.total / tipoMax) * 100);
+    return `<tr>
+      <td><span class="badge badge-${r.tipo}">${r.tipo}</span></td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="flex:1;background:var(--border);border-radius:4px;height:6px">
+            <div style="width:${pct}%;background:var(--green);height:6px;border-radius:4px"></div>
+          </div>
+          <span style="min-width:40px;text-align:right">${fmt(r.total)}</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="2" class="empty">—</td></tr>';
+
+  const origemMax = max(porOrigem || []);
+  qs('tabela-origem').innerHTML = (porOrigem || []).map(r => {
+    const pct = Math.round((+r.total / origemMax) * 100);
+    return `<tr>
+      <td style="color:var(--text)">${r.origem}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="flex:1;background:var(--border);border-radius:4px;height:6px">
+            <div style="width:${pct}%;background:var(--accent);height:6px;border-radius:4px"></div>
+          </div>
+          <span style="min-width:40px;text-align:right">${fmt(r.total)}</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="2" class="empty">—</td></tr>';
+}
+
+// ─── Exportar CSV ──────────────────────────────────────────────────────────────
+function exportarCSV() {
+  const qs2 = buildQueryString();
+  const sep = qs2 ? '&' : '?';
+  window.location.href = '/api/metricas/cliques' + qs2 + sep + 'formato=csv';
+}
+
+// ─── Gerador de links ──────────────────────────────────────────────────────────
+function gerarLink() {
+  const baseUrl = window.location.origin;
+  const numero = qs('gen-numero').value.trim().replace(/\D/g, '');
+  const campanha = qs('gen-campanha').value.trim() || 'sem-campanha';
+  const tipo = qs('gen-tipo').value;
+  const origem = qs('gen-origem').value;
+  const mensagem = qs('gen-mensagem').value.trim();
+
+  if (!numero) { toast('Informe o número do WhatsApp!'); return; }
+
+  let waUrl = `https://wa.me/${numero}`;
+  if (mensagem) waUrl += `?text=${encodeURIComponent(mensagem)}`;
+
+  const params = new URLSearchParams({
+    url: waUrl,
+    campanha,
+    tipo,
+    origem,
+  });
+
+  linkGerado = `${baseUrl}/track?${params.toString()}`;
+
+  const resultEl = qs('gen-result');
+  resultEl.textContent = linkGerado;
+  resultEl.classList.add('visible');
+  qs('btn-copiar').style.display = 'inline-block';
+  qs('btn-copiar-html').style.display = 'inline-block';
+
+  // Mostra seção de encurtamento (domínio já vem preenchido pelo /api/config)
+  qs('secao-encurtar').style.display = 'block';
+  if (!qs('short-domain').value) qs('short-domain').value = window.location.origin;
+  // Limpa resultado anterior
+  qs('gen-result-curto').textContent = '';
+  qs('gen-result-curto').classList.remove('visible');
+  qs('btn-copiar-curto').style.display = 'none';
+  linkCurtoGerado = '';
+}
+
+function copiarLink() {
+  if (!linkGerado) return;
+  navigator.clipboard.writeText(linkGerado).then(() => toast('Link copiado!'));
+}
+
+function copiarHTML() {
+  if (!linkGerado) return;
+  const campanha = qs('gen-campanha').value.trim() || 'Falar com a Vyria';
+  const html = `<a href="${linkGerado}" target="_blank" rel="noopener" style="display:inline-block;background:#25D366;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-family:sans-serif;font-weight:700;font-size:16px">
+  💬 ${campanha}
+</a>`;
+  navigator.clipboard.writeText(html).then(() => toast('HTML do botão copiado!'));
+}
+
+// ─── Encurtador de links ──────────────────────────────────────────────────────
+async function encurtarLink() {
+  if (!linkGerado) { toast('Gere um link primeiro!'); return; }
+
+  const campanha = qs('gen-campanha').value.trim() || 'sem-campanha';
+  const tipo     = qs('gen-tipo').value;
+  const origem   = qs('gen-origem').value;
+  const codigo   = qs('short-codigo').value.trim();
+  const domain   = (qs('short-domain').value.trim() || window.location.origin).replace(/\/$/, '');
+
+  const resultEl = qs('gen-result-curto');
+  resultEl.textContent = 'Gerando...';
+  resultEl.classList.add('visible');
+
+  try {
+    const resp = await fetch('/api/url-curta', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: linkGerado, campanha, tipo, origem, codigo: codigo || undefined }),
+    });
+    const data = await resp.json();
+
+    if (!resp.ok) {
+      resultEl.textContent = '⚠ ' + (data.erro || 'Erro ao encurtar.');
+      return;
+    }
+
+    // Monta a URL curta com o domínio personalizado (sem /r/)
+    linkCurtoGerado = `${domain}/${data.codigo}`;
+
+    resultEl.textContent = linkCurtoGerado;
+    qs('btn-copiar-curto').style.display = 'inline-block';
+    toast('Link curto criado!');
+  } catch (err) {
+    resultEl.textContent = '⚠ Erro de conexão.';
+    console.error('[Encurtador]', err);
+  }
+}
+
+function copiarCurto() {
+  if (!linkCurtoGerado) return;
+  navigator.clipboard.writeText(linkCurtoGerado).then(() => toast('Link curto copiado!'));
+}
+
+// ─── Configuração do servidor (SHORT_BASE_URL) ────────────────────────────────
+async function carregarConfig() {
+  try {
+    const resp = await fetch('/api/config');
+    if (!resp.ok) return;
+    const cfg = await resp.json();
+    if (cfg.short_base_url) {
+      qs('short-domain').value = cfg.short_base_url;
+    }
+  } catch (_) {}
+}
+
+// ─── Auto-refresh ──────────────────────────────────────────────────────────────
+carregarDados();
+carregarConfig();
+setInterval(carregarDados, 60000);
+</script>
+</body>
+</html>
