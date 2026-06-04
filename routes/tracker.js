@@ -96,6 +96,9 @@ router.get('/logout', (req, res) => {
   res.redirect('/login');
 });
 
+// ─── Raiz — redireciona para o painel ────────────────────────────────────────
+router.get('/', (req, res) => res.redirect('/painel/cliques'));
+
 // ─── FUNCIONALIDADE 1 — Redirect tracker ──────────────────────────────────────
 
 router.get('/track', async (req, res) => {
