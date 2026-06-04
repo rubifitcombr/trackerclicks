@@ -329,6 +329,7 @@ router.get('/painel/cliques', requireAuth, (req, res) => {
 router.get('/api/config', (req, res) => {
   res.json({
     short_base_url: (process.env.SHORT_BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, ''),
+    whatsapp_number: process.env.WHATSAPP_NUMBER || '',
   });
 });
 

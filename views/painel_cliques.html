@@ -310,7 +310,7 @@
       <div class="gen-grid">
         <div class="gen-field" style="grid-column:span 2">
           <label>Número WhatsApp (com DDI+DDD, sem espaços)</label>
-          <input type="text" id="gen-numero" value="5562999999999" placeholder="5562999999999" />
+          <input type="text" id="gen-numero" placeholder="Ex: 5562999999999" />
         </div>
         <div class="gen-field">
           <label>Nome da Campanha</label>
@@ -356,7 +356,7 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
           <div class="gen-field">
             <label>Domínio personalizado</label>
-            <input type="text" id="short-domain" placeholder="https://consultoresvyria" />
+            <input type="text" id="short-domain" placeholder="https://seu-dominio.com.br" />
           </div>
           <div class="gen-field">
             <label>Código personalizado <span style="color:var(--muted);font-weight:400">(opcional)</span></label>
@@ -714,9 +714,8 @@ async function carregarConfig() {
     const resp = await fetch('/api/config');
     if (!resp.ok) return;
     const cfg = await resp.json();
-    if (cfg.short_base_url) {
-      qs('short-domain').value = cfg.short_base_url;
-    }
+    if (cfg.short_base_url) qs('short-domain').value = cfg.short_base_url;
+    if (cfg.whatsapp_number) qs('gen-numero').value = cfg.whatsapp_number;
   } catch (_) {}
 }
 
