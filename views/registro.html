@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vyria — Criar Conta</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      background: #0f1923;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+    .card {
+      background: #18232f;
+      border: 1px solid #263447;
+      border-radius: 16px;
+      padding: 44px 40px 36px;
+      width: 100%; max-width: 400px;
+      box-shadow: 0 24px 60px rgba(0,0,0,.5);
+    }
+    .logo { text-align: center; margin-bottom: 28px; }
+    .logo-icon {
+      width: 52px; height: 52px;
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      border-radius: 14px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 26px; margin-bottom: 12px;
+    }
+    .logo h1 { font-size: 1.15rem; font-weight: 700; color: #e2e8f0; }
+    .logo p  { font-size: .78rem; color: #7c92a8; margin-top: 3px; }
+
+    .field { margin-bottom: 16px; }
+    .field label {
+      display: block; font-size: .72rem; text-transform: uppercase;
+      letter-spacing: .8px; color: #7c92a8; margin-bottom: 6px;
+    }
+    .field input {
+      width: 100%; background: #0f1923; border: 1px solid #263447;
+      border-radius: 9px; padding: 11px 14px; color: #e2e8f0;
+      font-size: .92rem; outline: none; transition: border-color .15s;
+    }
+    .field input:focus { border-color: #3b82f6; }
+    .field input::placeholder { color: #4a6070; }
+
+    .btn-submit {
+      width: 100%; margin-top: 8px; padding: 12px;
+      background: #3b82f6; color: #fff; border: none;
+      border-radius: 9px; font-size: .95rem; font-weight: 700;
+      cursor: pointer; transition: background .15s, transform .1s;
+    }
+    .btn-submit:hover  { background: #2563eb; }
+    .btn-submit:active { transform: scale(.98); }
+
+    .msg {
+      border-radius: 8px; padding: 10px 14px;
+      font-size: .82rem; margin-bottom: 16px; display: none;
+    }
+    .msg.erro    { background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.3); color: #f87171; }
+    .msg.sucesso { background: rgba(37,211,102,.12); border: 1px solid rgba(37,211,102,.3); color: #4ade80; }
+    .msg.visible { display: block; }
+
+    .link-login {
+      text-align: center; margin-top: 20px; font-size: .8rem; color: #7c92a8;
+    }
+    .link-login a { color: #3b82f6; text-decoration: none; }
+    .link-login a:hover { text-decoration: underline; }
+
+    .fechado {
+      text-align: center; padding: 16px 0;
+      font-size: .9rem; color: #f87171; line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <div class="logo-icon">👤</div>
+    <h1>Vyria Delivery</h1>
+    <p id="subtitulo">Criar conta de acesso</p>
+  </div>
+
+  <div class="msg erro"    id="msg-erro"></div>
+  <div class="msg sucesso" id="msg-sucesso"></div>
+
+  <div id="form-wrap">
+    <form id="form-registro">
+      <div class="field">
+        <label>E-mail</label>
+        <input type="email" name="email" id="email"
+               placeholder="seu@email.com" autocomplete="email" required autofocus />
+      </div>
+      <div class="field">
+        <label>Senha</label>
+        <input type="password" name="password" id="password"
+               placeholder="••••••••••" autocomplete="new-password" required minlength="6" />
+      </div>
+      <div class="field">
+        <label>Confirmar senha</label>
+        <input type="password" id="password2"
+               placeholder="••••••••••" autocomplete="new-password" required />
+      </div>
+      <button type="submit" class="btn-submit">Criar conta</button>
+    </form>
+  </div>
+
+  <div class="link-login">
+    Já tem conta? <a href="/login">Entrar</a>
+  </div>
+</div>
+
+<script>
+const form = document.getElementById('form-registro');
+const msgErro    = document.getElementById('msg-erro');
+const msgSucesso = document.getElementById('msg-sucesso');
+
+function showErro(txt) {
+  msgErro.textContent = txt;
+  msgErro.classList.add('visible');
+  msgSucesso.classList.remove('visible');
+}
+function showSucesso(txt) {
+  msgSucesso.textContent = txt;
+  msgSucesso.classList.add('visible');
+  msgErro.classList.remove('visible');
+}
+
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  const email    = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const password2 = document.getElementById('password2').value;
+
+  if (password !== password2) { showErro('As senhas não coincidem.'); return; }
+  if (password.length < 6)    { showErro('A senha deve ter pelo menos 6 caracteres.'); return; }
+
+  const btn = form.querySelector('button');
+  btn.disabled = true;
+  btn.textContent = 'Criando...';
+
+  try {
+    const resp = await fetch('/registro', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await resp.json();
+
+    if (resp.ok) {
+      showSucesso('Conta criada com sucesso! Redirecionando...');
+      form.style.display = 'none';
+      setTimeout(() => window.location.href = '/login', 1800);
+    } else {
+      showErro(data.erro || 'Erro ao criar conta.');
+      btn.disabled = false;
+      btn.textContent = 'Criar conta';
+    }
+  } catch (_) {
+    showErro('Erro de conexão.');
+    btn.disabled = false;
+    btn.textContent = 'Criar conta';
+  }
+});
+</script>
+</body>
+</html>

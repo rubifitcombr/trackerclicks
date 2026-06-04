@@ -85,6 +85,43 @@ router.get('/logout', (req, res) => {
   res.redirect('/login');
 });
 
+// ─── Registro de novo usuário ─────────────────────────────────────────────────
+
+router.get('/registro', async (req, res) => {
+  res.sendFile(path.join(__dirname, '../views/registro.html'));
+});
+
+router.post('/registro', express.json(), async (req, res) => {
+  const { email, password } = req.body || {};
+
+  if (!email || !password) {
+    return res.status(400).json({ erro: 'E-mail e senha são obrigatórios.' });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ erro: 'A senha deve ter pelo menos 6 caracteres.' });
+  }
+
+  try {
+    const { hashPassword } = require('../utils/auth');
+
+    // Verifica se o e-mail já existe
+    const [exists] = await db.execute('SELECT id FROM usuarios WHERE email = ?', [email]);
+    if (exists.length > 0) {
+      return res.status(409).json({ erro: 'Este e-mail já está cadastrado.' });
+    }
+
+    await db.execute(
+      'INSERT INTO usuarios (email, senha_hash) VALUES (?, ?)',
+      [email.toLowerCase().trim(), hashPassword(password)]
+    );
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[Registro] Erro:', err.code || err.message);
+    return res.status(500).json({ erro: 'Erro interno ao criar conta.' });
+  }
+});
+
 // ─── Raiz — redireciona para o painel ────────────────────────────────────────
 router.get('/', (req, res) => res.redirect('/painel/cliques'));
 

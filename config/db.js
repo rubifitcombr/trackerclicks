@@ -1,5 +1,4 @@
 const { Pool } = require('pg');
-const { hashPassword } = require('../utils/auth');
 
 // Suporta DATABASE_URL (Supabase/Railway) ou variáveis individuais (Hostinger/local)
 const pool = new Pool(
@@ -72,16 +71,7 @@ pool.connect()
       await client.query(CREATE_TABLES);
       console.log('[DB] Tabelas verificadas/criadas com sucesso.');
 
-      // Upsert do usuário admin a cada startup (garante senha sempre no formato correto)
-      if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
-        await client.query(
-          `INSERT INTO usuarios (email, senha_hash)
-           VALUES ($1, $2)
-           ON CONFLICT (email) DO UPDATE SET senha_hash = EXCLUDED.senha_hash`,
-          [process.env.ADMIN_EMAIL, hashPassword(process.env.ADMIN_PASSWORD)]
-        );
-        console.log(`[DB] Usuário admin sincronizado: ${process.env.ADMIN_EMAIL}`);
-      }
+      console.log('[DB] Pronto. Use /registro para criar o primeiro usuário.');
     } finally {
       client.release();
     }
